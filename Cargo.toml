@@ -7,8 +7,9 @@ homepage = "https://substrate.io"
 
 [workspace]
 members = [
-    "node",
+    "node", "pallets/erc20",
     "pallets/template",
+	"pallets/erc20",
     "runtime",
 ]
 resolver = "2"

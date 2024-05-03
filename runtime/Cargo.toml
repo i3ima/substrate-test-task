@@ -24,6 +24,9 @@ scale-info = { version = "2.10.0", default-features = false, features = [
 	"serde",
 ] }
 
+# custom pallet
+pallet-erc20 = { path = "../pallets/erc20", default-features = false }
+
 # frame
 frame-support = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0", default-features = false, features = ["experimental"] }
 frame-system = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0", default-features = false }
@@ -95,6 +98,7 @@ std = [
 
 	"pallet-aura/std",
 	"pallet-balances/std",
+	"pallet-erc20/std",
 	"pallet-grandpa/std",
 	"pallet-sudo/std",
 	"pallet-template/std",
