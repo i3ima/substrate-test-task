@@ -1,5 +1,6 @@
 [package]
 name = "pallet-erc20"
+description = "FRAME pallet that implements ERC-20 functionality"
 version = "0.1.0"
 authors.workspace = true
 edition.workspace = true
@@ -20,6 +21,8 @@ scale-info = { version = "2.10.0", default-features = false, features = [
 	"derive",
 ] }
 
+log = { version = "0.4.21", default-features = false }
+
 frame-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0", default-features = false, optional = true }
 frame-support = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0", default-features = false }
 frame-system = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0", default-features = false }
@@ -28,7 +31,14 @@ pallet-balances = { git = "https://github.com/paritytech/polkadot-sdk.git", tag 
 pallet-sudo = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0", default-features = false }
 
 sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0", default-features = false}
+sp-std = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0", default-features = false }
 
+[dev-dependencies]
+
+frame-support = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0", features = ["experimental"] }
+
+sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0" }
+sp-io = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0" }
 
 [features]
 default = ["std"]
@@ -40,6 +50,9 @@ std = [
 	"pallet-balances/std",
 	"pallet-sudo/std",
 	"sp-runtime/std",
+	"sp-core/std",
+	"sp-io/std",
+	"sp-std/std"
 ]
 
 runtime-benchmarks = [

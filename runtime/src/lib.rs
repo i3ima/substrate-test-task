@@ -246,6 +246,7 @@ impl pallet_erc20::Config for Runtime {
 	type ForceOrigin = frame_system::EnsureRoot<AccountId>;
 
 	type Supply = ConstU32<TOTAL_SUPPLY>;
+	type WeightInfo = pallet_erc20::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -361,6 +362,7 @@ mod benches {
 		[pallet_balances, Balances]
 		[pallet_timestamp, Timestamp]
 		[pallet_sudo, Sudo]
+		[pallet_erc20, Erc]
 	);
 }
 
