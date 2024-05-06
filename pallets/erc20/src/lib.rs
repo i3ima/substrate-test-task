@@ -3,7 +3,18 @@
 
 pub use pallet::*;
 
+#[cfg(test)]
+mod tests;
+
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+pub mod weights;
+
+pub use weights::*;
+
 use sp_runtime::traits::{CheckedAdd, SaturatedConversion, StaticLookup, Zero};
+
+const LOG_TARGET: &str = "runtime::erc";
 
 type AccountIdLookupOf<T> = <<T as frame_system::Config>::Lookup as StaticLookup>::Source;
 
@@ -24,9 +35,10 @@ pub mod pallet {
 	pub trait Config<I: 'static = ()>:
 		frame_system::Config + pallet_balances::Config + pallet_sudo::Config
 	{
-		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type RuntimeEvent: From<Event<Self, I>>
 			+ IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
+		type WeightInfo: WeightInfo;
 
 		#[pallet::constant]
 		type Supply: Get<u32>;
@@ -37,7 +49,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxSymbolLength: Get<u32>;
 
-		/// The origin that's allowed to make privileged calls and issue tokens from total supply 
+		/// The origin that's allowed to make privileged calls and issue tokens from total supply
 		type ForceOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		// TODO: Weights for this pallet
@@ -53,13 +65,16 @@ pub mod pallet {
 		StorageValue<_, BoundedVec<u8, T::MaxSymbolLength>, ValueQuery>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn total_supply)]
 	pub type TotalSupply<T: Config<I>, I: 'static = ()> = StorageValue<_, u32, ValueQuery>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn balance_of)]
 	pub type Balances<T: Config<I>, I: 'static = ()> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, T::Balance>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn allowance_of)]
 	pub type Allowances<T: Config<I>, I: 'static = ()> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
@@ -158,7 +173,7 @@ pub mod pallet {
 			Self::ensure_balance_mapping(&from);
 
 			// We can safely do unwrap because of previous check
-			let sender_funds = <Balances<T, I>>::get(&from).unwrap();
+			let sender_funds = Self::balance_of(&from).unwrap();
 
 			// Check if sender has enough funds
 			ensure!(sender_funds >= value, Error::<T, I>::NotEnoughFunds);
@@ -167,7 +182,7 @@ pub mod pallet {
 			Self::ensure_balance_mapping(&dest);
 
 			// Get current funds amount of receiver
-			let receiver_funds: T::Balance = <Balances<T, I>>::get(&dest).unwrap();
+			let receiver_funds: T::Balance = Self::balance_of(&dest).unwrap();
 
 			// Try to update funds
 			let remaining: T::Balance = sender_funds.saturating_sub(value);
@@ -207,9 +222,12 @@ pub mod pallet {
 			let to = T::Lookup::lookup(to)?;
 
 			// Make sure there's allowance for origin. Will fail if there's none
-			let current_allowance: u32 = <Allowances<T, I>>::try_get(&from, &origin)
+
+			let current_allowance: u32 = Self::allowance_of(&from, &origin)
 				.map(|b| b.saturated_into())
-				.map_err(|_| Error::<T, I>::NoAllowance)?;
+				.ok_or(Error::<T, I>::NoAllowance)?;
+
+			log::debug!(target: LOG_TARGET, "Current allowance {:?}", &current_allowance);
 
 			// Update sender
 			let remaining_allowance = <Balances<T, I>>::mutate(&from, |balance| {
@@ -250,7 +268,11 @@ pub mod pallet {
 				Ok::<(), Error<T, I>>(())
 			})?;
 
-			Self::deposit_event(Event::<T, I>::Transfer { from, to, value: Self::u32_to_balance(value) });
+			Self::deposit_event(Event::<T, I>::Transfer {
+				from,
+				to,
+				value: Self::u32_to_balance(value),
+			});
 
 			Ok(())
 		}
@@ -272,15 +294,16 @@ pub mod pallet {
 
 			let who = T::Lookup::lookup(who)?;
 
-			match <Allowances<T, I>>::contains_key(&from, &who) {
-				true => {
+
+			match Self::allowance_of(&from, &who) {
+				Some(_) => {
 					// Otherwise perform mutate with saturation add which protects us from overflow
 					// of allowed funds
 					<Allowances<T, I>>::mutate(&from, &who, |allowance| {
 						*allowance = Some(allowance.unwrap().saturating_add(value));
 					});
 				},
-				false => {
+				None => {
 					// If there's yet no mapping of AccountId -> AccountId -> Balance just insert
 					<Allowances<T, I>>::insert(&from, &who, value);
 				},
@@ -310,7 +333,7 @@ pub mod pallet {
 			let dest = T::Lookup::lookup(to)?;
 
 			// Get current supply and make sure no overflow will occur
-			let current_supply = <TotalSupply<T, I>>::get();
+			let current_supply = Self::total_supply();
 			let remaining = current_supply
 				.checked_sub(value.saturated_into())
 				.ok_or(Error::<T, I>::NotEnoughSupply)?;
@@ -343,7 +366,7 @@ pub mod pallet {
 
 		/// Utility function that checks account presence in Balances storage and inserts if needed
 		pub fn ensure_balance_mapping(account: &T::AccountId) {
-			<Balances<T, I>>::contains_key(account).eq(&false).then(|| {
+			Self::balance_of(&account).is_none().then(|| {
 				<Balances<T, I>>::insert(account, Self::u32_to_balance(0));
 			});
 		}
@@ -352,9 +375,4 @@ pub mod pallet {
 			Into::<T::Balance>::into(value)
 		}
 	}
-}
-
-pub mod weights {
-	// TODO: Calculate/benchmark actual weights
-	pub struct SubstrateWeight<T>(core::marker::PhantomData<T>);
 }
