@@ -15,10 +15,11 @@ with a [pallet](https://docs.substrate.io/learn/runtime-development/#frame) that
   in one runtime
 
 ## TODO: 
-- Replace some direct storage access with `storage-getters`
-- Weights, benchmarks
-- Unit tests (integration testing of substrate is whole another story)
-- Refactor of code structure - implement `tokens::funginle`, move common functionality in separate functions, change how storage gets modified
+- [X] Remove u32 -> T::Balance conversions
+- [ ] Weights, benchmarks
+- [ ] Refactor of code structure - implement `tokens::funginle`, move common functionality in separate functions, change how storage gets modified
+- [ ] Unit tests (integration testing of substrate is whole another story)
+- [x] Replace some direct storage access with `storage-getters`
 
 ### Build
 
