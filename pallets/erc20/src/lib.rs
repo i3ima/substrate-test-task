@@ -14,18 +14,24 @@ pub use weights::*;
 
 use sp_runtime::traits::{CheckedAdd, StaticLookup, Zero};
 
-pub(crate) type AccountIdLookupOf<T> = <<T as frame_system::Config>::Lookup as StaticLookup>::Source;
+const LOG_TARGET: &str = "runtime::erc";
+
+/// Utility type that defines RawOrigin conversion to reference accounts in transactions
+pub(crate) type AccountIdLookupOf<T> =
+	<<T as frame_system::Config>::Lookup as StaticLookup>::Source;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use codec::Codec;
 	use super::*;
+	use codec::Codec;
+	use core::fmt::Debug;
 	use frame_support::{ensure, pallet_prelude::*, BoundedVec};
 	use frame_system::pallet_prelude::{OriginFor, *};
 	use scale_info::prelude::{string::String, vec::Vec};
-	use sp_runtime::{FixedPointOperand, Saturating};
-	use sp_runtime::traits::{AtLeast32BitUnsigned, Bounded, CheckedSub};
-	use core::fmt::Debug;
+	use sp_runtime::{
+		traits::{AtLeast32BitUnsigned, Bounded, CheckedSub},
+		FixedPointOperand, Saturating,
+	};
 
 	// I decided to make pallet instantiable so multiple instances of ERC20 can exist in one network
 	#[pallet::pallet]
@@ -33,43 +39,49 @@ pub mod pallet {
 	pub struct Pallet<T, I = ()>(PhantomData<(T, I)>);
 
 	#[pallet::config]
-	pub trait Config<I: 'static = ()>:
-		frame_system::Config + pallet_sudo::Config
-	{
+	pub trait Config<I: 'static = ()>: frame_system::Config + pallet_sudo::Config {
 		type RuntimeEvent: From<Event<Self, I>>
 			+ IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		type WeightInfo: WeightInfo;
 
+		/// Defines total supply of a particular token. [`issue()`](Pallet::issue()) extrinsic does
+		/// subtraction from it
 		#[pallet::constant]
 		type Supply: Get<u32>;
 
+		/// Max possible length of a token name.
 		#[pallet::constant]
 		type MaxNameLength: Get<u32>;
 
+		/// Max possible length of a token symbol
 		#[pallet::constant]
 		type MaxSymbolLength: Get<u32>;
 
-		/// The origin that's allowed to make privileged calls and issue tokens from total supply
+		/// The origin that's allowed to make privileged calls and, therefore, issue tokens from
+		/// total supply. In real situation this will be either Root or Sudo call
 		type ForceOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
-		/// This associated type is straight copied from [`Balances`](pallet_balances) to not deal with a lot of problems when you tightly couple it
+		/// This associated type is straight copied from [`Balances`](pallet_balances) to not deal
+		/// with a lot of problems when you tightly couple it
 		type Balance: Parameter
-		+ Member
-		+ AtLeast32BitUnsigned
-		+ Codec
-		+ Default
-		+ Copy
-		+ MaybeSerializeDeserialize
-		+ Debug
-		+ MaxEncodedLen
-		+ TypeInfo
-		+ FixedPointOperand;
+			+ Member
+			+ AtLeast32BitUnsigned
+			+ Codec
+			+ Default
+			+ Copy
+			+ MaybeSerializeDeserialize
+			+ Debug
+			+ MaxEncodedLen
+			+ TypeInfo
+			+ FixedPointOperand;
 
 		// TODO: Weights for this pallet
 		// type WeightInfo;
 	}
 
+	/// Token name, encoded as bytes, UTF-8. Whatever utility is querying storage should do custom
+	/// decoding since we can't stora actual strings in Substrate runtime
 	#[pallet::storage]
 	pub type Name<T: Config<I>, I: 'static = ()> =
 		StorageValue<_, BoundedVec<u8, T::MaxNameLength>, ValueQuery>;
@@ -78,15 +90,26 @@ pub mod pallet {
 	pub type Symbol<T: Config<I>, I: 'static = ()> =
 		StorageValue<_, BoundedVec<u8, T::MaxSymbolLength>, ValueQuery>;
 
+	// TODO: Maybe total supply should use associated type that differs from balance one?
+	// It may create some problems of conversion but with proper `AtLeast` bounds it'll give pallet more robustness and flexibility
 	#[pallet::storage]
 	#[pallet::getter(fn total_supply)]
 	pub type TotalSupply<T: Config<I>, I: 'static = ()> = StorageValue<_, T::Balance, ValueQuery>;
 
+	/// A mapping of accounts to corresponding balances
 	#[pallet::storage]
 	#[pallet::getter(fn balance_of)]
 	pub type Balances<T: Config<I>, I: 'static = ()> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, T::Balance>;
+		StorageMap<_, Blake2_128Concat, T::AccountId, T::Balance, ValueQuery>;
 
+	/*
+		TODO: Maybe this can be simplified?
+		I definitely can use structure like AccountId (one who gives permissions) -> (AccountId, Balance)[] or
+		AccountId (one who receives permissions) -> AccountId (one who gave) -> Balance, both of which have more benefits
+	*/
+	/// Storage for allowances mechanism. Mapping is `AccountId -> AccountId -> Balance`. Where
+	/// first account is who gives permissions to transfer one's own funds to another user, second
+	/// is the one who can transfer.
 	#[pallet::storage]
 	#[pallet::getter(fn allowance_of)]
 	pub type Allowances<T: Config<I>, I: 'static = ()> = StorageDoubleMap<
@@ -96,6 +119,7 @@ pub mod pallet {
 		Blake2_128Concat,
 		T::AccountId,
 		T::Balance,
+		ValueQuery,
 	>;
 
 	// Runtime events
@@ -109,8 +133,6 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T, I = ()> {
-		NoSenderAccount,
-		NoReceiverAccount,
 		NoAllowance,
 		SenderUnderflow,
 		ReceiverOverflow,
@@ -126,6 +148,7 @@ pub mod pallet {
 		pub total_supply: T::Balance,
 		pub name: String,
 		pub symbol: String,
+		// Eh... rust
 		pub _ignore: PhantomData<I>,
 	}
 
@@ -161,42 +184,35 @@ pub mod pallet {
 	}
 
 	// Functions that are callable
-	#[pallet::call]
+	#[pallet::call(weight(<T as Config<I>>::WeightInfo))]
 	impl<T: Config<I>, I: 'static> Pallet<T, I> {
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(0)]
 		pub fn transfer(
 			origin: OriginFor<T>,
 			dest: AccountIdLookupOf<T>,
 			#[pallet::compact] value: T::Balance,
 		) -> DispatchResult {
+			// Since this transfer extrinsic is performed on behalf of whoever calls it we need to
+			// check that it's signed by whoever called it
+			let from = ensure_signed(origin)?;
+
 			// Don't do nothing if value is zero.
 			// TODO: Maybe return error or produce event instead?
 			if value.is_zero() {
 				return Ok(());
 			}
 
-			// Since this transfer extrinsic is performed on behalf of whoever calls it we need to
-			// check that it's signed by whoever called it
-			let from = ensure_signed(origin)?;
 			// Convert AccountId
 			let dest = T::Lookup::lookup(dest)?;
 
-
-			// Make sure that sender account exists in storage
-			Self::ensure_balance_mapping(&from);
-
-			// We can safely do unwrap because of previous check
-			let sender_funds = Self::balance_of(&from).unwrap();
+			// Get the sender balance. Will return 0 by default (i.e when no value)
+			let sender_funds = Self::balance_of(&from);
 
 			// Check if sender has enough funds
 			ensure!(sender_funds >= value, Error::<T, I>::NotEnoughFunds);
 
-			// If there's no sender account in balances -- insert it first
-			Self::ensure_balance_mapping(&dest);
-
 			// Get current funds amount of receiver
-			let receiver_funds: T::Balance = Self::balance_of(&dest).unwrap();
+			let receiver_funds: T::Balance = Self::balance_of(&dest);
 
 			// Try to update funds
 			let remaining: T::Balance = sender_funds.saturating_sub(value);
@@ -229,61 +245,52 @@ pub mod pallet {
 				return Ok(())
 			}
 
-			// Since we're doing transfer of tokens on behalf of other user we need to make sure origin of transaction is signed
+			// Since we're doing transfer of tokens on behalf of other user we need to make sure
+			// origin of transaction is signed
 			let origin = ensure_signed(origin)?;
 
 			let from = T::Lookup::lookup(from)?;
 			let to = T::Lookup::lookup(to)?;
 
-			// Make sure there's allowance for origin. Will fail if there's none
-			let current_allowance = Self::allowance_of(&from, &origin).ok_or(Error::<T, I>::NoAllowance)?;
-
 			// Update sender
-			let remaining_allowance = <Balances<T, I>>::mutate(&from, |balance| {
+			<Balances<T, I>>::mutate(&from, |balance| {
 				// If there's no balance for such account there's no point in continuing
-				let current_balance =
-					balance.ok_or(Error::<T, I>::NotEnoughFunds)?;
+				ensure!(!balance.is_zero(), Error::<T, I>::NotEnoughFunds);
 
-				ensure!(
-					current_allowance >= value && current_allowance > T::Balance::from(0u32),
-					Error::<T, I>::NotEnoughAllowance
-				);
+				ensure!(*balance >= value, Error::<T, I>::NotEnoughFunds);
 
-				ensure!(current_balance >= value, Error::<T, I>::NotEnoughFunds);
+				let remaining = balance.saturating_sub(value);
+				*balance = remaining;
 
-				let remaining = current_balance.saturating_sub(value);
-
-				*balance = Some(remaining);
-
-				Ok::<_, Error<T, I>>(current_allowance - value)
+				Ok::<_, Error<T, I>>(())
 			})?;
 
 			// Update allowance
 			<Allowances<T, I>>::mutate(&from, origin, |allowance| {
-				*allowance = Some(remaining_allowance);
+				let current = *allowance;
+
+				// Make sure there's allowance for origin. Will fail if there's none
+				ensure!(current > T::Balance::zero(), Error::<T, I>::NoAllowance);
+
+				// Check if allowance is more or equal to the amount to be transferred and more than
+				// zero
+				ensure!(
+					current >= value && current > T::Balance::from(0u32),
+					Error::<T, I>::NotEnoughAllowance
+				);
+
+				*allowance = current - value;
 				Ok::<_, Error<T, I>>(())
 			})?;
-
-			// If recipient doesn't have it's AccountId stored in pallet yet we create it. Benchmarks have to account to that as worst-case
-			Self::ensure_balance_mapping(&to);
 
 			// Finally, update sender
 			<Balances<T, I>>::mutate(&to, |balance| {
-				*balance = Some(
-					balance
-						.unwrap()
-						.checked_add(&value)
-						.ok_or(Error::<T, I>::ReceiverOverflow)?,
-				);
+				*balance = balance.checked_add(&value).ok_or(Error::<T, I>::ReceiverOverflow)?;
 
 				Ok::<_, Error<T, I>>(())
 			})?;
 
-			Self::deposit_event(Event::<T, I>::Transfer {
-				from,
-				to,
-				value
-			});
+			Self::deposit_event(Event::<T, I>::Transfer { from, to, value });
 
 			Ok(())
 		}
@@ -305,20 +312,9 @@ pub mod pallet {
 
 			let who = T::Lookup::lookup(who)?;
 
-
-			match Self::allowance_of(&from, &who) {
-				Some(_) => {
-					// Otherwise perform mutate with saturation add which protects us from overflow
-					// of allowed funds
-					<Allowances<T, I>>::mutate(&from, &who, |allowance| {
-						*allowance = Some(allowance.unwrap().saturating_add(value));
-					});
-				},
-				None => {
-					// If there's yet no mapping of AccountId -> AccountId -> Balance just insert
-					<Allowances<T, I>>::insert(&from, &who, value);
-				},
-			}
+			<Allowances<T, I>>::mutate(&from, &who, |allowance| {
+				*allowance = allowance.saturating_add(value);
+			});
 
 			Self::deposit_event(Event::<T, I>::Approval { from, to: who, value });
 
@@ -345,17 +341,14 @@ pub mod pallet {
 
 			// Get current supply and make sure no overflow will occur
 			let current_supply = Self::total_supply();
-			let remaining = current_supply
-				.checked_sub(&value)
-				.ok_or(Error::<T, I>::NotEnoughSupply)?;
+			let remaining =
+				current_supply.checked_sub(&value).ok_or(Error::<T, I>::NotEnoughSupply)?;
 
-			Self::ensure_balance_mapping(&dest);
 
 			// Try to update balance
 			<Balances<T, I>>::mutate(&dest, |balance| {
-				let new_balance =
-					balance.unwrap().checked_add(&value).ok_or(Error::<T, I>::ReceiverOverflow)?;
-				*balance = Some(new_balance);
+				let new_balance = balance.checked_add(&value).ok_or(Error::<T, I>::ReceiverOverflow)?;
+				*balance = new_balance;
 
 				Ok::<(), Error<T, I>>(())
 			})?;
@@ -372,14 +365,7 @@ pub mod pallet {
 	impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		// TODO: Maybe it's better to facilitate `frame_support::traits::tokens::fungible`?
 		pub fn update_balance(account: &T::AccountId, value: T::Balance) {
-			<Balances<T, I>>::set(account, Some(value));
-		}
-
-		/// Utility function that checks account presence in Balances storage and inserts if needed
-		pub fn ensure_balance_mapping(account: &T::AccountId) {
-			Self::balance_of(&account).is_none().then(|| {
-				<Balances<T, I>>::insert(account, T::Balance::min_value());
-			});
+			<Balances<T, I>>::set(account, value);
 		}
 	}
 }

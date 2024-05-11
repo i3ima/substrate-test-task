@@ -16,9 +16,10 @@ with a [pallet](https://docs.substrate.io/learn/runtime-development/#frame) that
 
 ## TODO: 
 - [X] Remove u32 -> T::Balance conversions
+- [X] Replace `OptionQuery` with `ValueQuery` for simplicity
 - [ ] Weights, benchmarks
-- [ ] Refactor of code structure - implement `tokens::funginle`, move common functionality in separate functions, change how storage gets modified
 - [ ] Unit tests (integration testing of substrate is whole another story)
+- [ ] Refactor of code structure - implement `tokens::funginle`, move common functionality in separate functions, change how storage gets modified
 - [x] Replace some direct storage access with `storage-getters`
 
 ### Build
