@@ -1,32 +1,32 @@
+use frame_benchmarking::whitelisted_caller;
 use crate::{self as pallet_erc20, Config};
-use frame_support::{derive_impl, parameter_types, traits::{ConstU16, ConstU64}};
+use frame_support::{derive_impl, parameter_types};
 use frame_support::traits::ConstU32;
-use frame_system::{RawOrigin};
-use sp_core::H256;
-use sp_runtime::{traits::{BlakeTwo256, IdentityLookup}, BuildStorage, MultiSignature};
-use sp_runtime::traits::{IdentifyAccount, Verify};
-
+use sp_runtime::{BuildStorage};
+// Const that are needed for this pallet Config
 pub const MAX_NAME_LENGTH: u8 = 50;
 pub const MAX_SYMBOL_LENGTH: u8 = 50;
+pub const TOTAL_SUPPLY: u32 = u32::MAX;
 
+
+// Types that are needed for Config's of this pallet and other that are coupled
 type Block = frame_system::mocking::MockBlock<Test>;
-
-type AccountId = <<MultiSignature as Verify>::Signer as IdentifyAccount>::AccountId;
-
 pub(crate) type Balance = u128;
+
 
 parameter_types! {
 	pub const MaxNameLength: u8 = MAX_NAME_LENGTH;
 	pub const MaxSymbolLength: u8 = MAX_SYMBOL_LENGTH;
+	pub static ExistentialDeposit: u64 = 1;
 }
 
-// Configure a mock runtime to test the pallet.
+
+// Configure a mock runtime to test.rs the pallet.
 frame_support::construct_runtime!(
 	pub enum Test
 	{
 		System: frame_system,
         Sudo: pallet_sudo,
-        Balances: pallet_balances,
 		Erc: pallet_erc20,
 	}
 );
@@ -36,11 +36,7 @@ impl frame_system::Config for Test {
 	type Block = Block;
 }
 
-#[derive_impl(pallet_balances::config_preludes::TestDefaultConfig)]
-impl pallet_balances::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type Balance = Balance;
-}
+
 
 #[derive_impl(pallet_sudo::config_preludes::TestDefaultConfig)]
 impl pallet_sudo::Config for Test {
@@ -50,10 +46,12 @@ impl pallet_sudo::Config for Test {
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
-	type Supply = ConstU32<u32::MAX>;
+	type Supply = ConstU32<TOTAL_SUPPLY>;
 	type MaxNameLength = MaxNameLength;
 	type MaxSymbolLength = MaxSymbolLength;
-	type ForceOrigin = frame_system::EnsureRoot<AccountId>;
+	type ForceOrigin = frame_system::EnsureRoot<<Test as frame_system::Config>::AccountId>;
+	
+	type Balance = Balance;
 }
 
 // Build genesis storage according to the mock runtime.
@@ -70,13 +68,13 @@ impl ExtBuilder {
 
 		pallet_erc20::GenesisConfig::<Test> {
             balances: vec![
-				(0, 2000),
+				(whitelisted_caller(), 2000),
 				(1, 0)
 			],
             allowances: vec![],
-            total_supply: u32::MAX,
-            name: "Bitcoin".to_string(),
-            symbol: "BTC".to_string(),
+            total_supply: u128::MAX,
+            name: "Ethereum".to_string(),
+            symbol: "ETH".to_string(),
             _ignore: Default::default()
         }
 			.assimilate_storage(&mut t)
@@ -85,6 +83,12 @@ impl ExtBuilder {
 		let mut ext = sp_io::TestExternalities::new(t);
 		ext.execute_with(|| System::set_block_number(1));
 		ext
+	}
+}
+
+impl Default for ExtBuilder {
+	fn default() -> Self {
+		Self {}
 	}
 }
 

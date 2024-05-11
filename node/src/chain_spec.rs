@@ -1,3 +1,4 @@
+use frame_benchmarking::whitelisted_caller;
 use node_template_runtime::{AccountId, RuntimeGenesisConfig, Signature, WASM_BINARY};
 use sc_service::ChainType;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -106,7 +107,9 @@ fn testnet_genesis(
 		},
 		"erc": {
 			"name": "Bitcoin",
-			"symbol": "BTC"
+			"symbol": "BTC",
+			"balances": [(whitelisted_caller::<AccountId>(), 2000)]
+			,
 		}
 	})
 }

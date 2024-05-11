@@ -60,6 +60,7 @@ substrate-frame-rpc-system = { git = "https://github.com/paritytech/polkadot-sdk
 
 # These dependencies are used for runtime benchmarking
 frame-benchmarking-cli = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0" }
+frame-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0" }
 
 # Local Dependencies
 node-template-runtime = { path = "../runtime" }
@@ -75,6 +76,7 @@ default = []
 # Dependencies that are only required if runtime benchmarking should be build.
 runtime-benchmarks = [
 	"frame-benchmarking-cli/runtime-benchmarks",
+	"frame-benchmarking/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"sc-service/runtime-benchmarks",
 	"node-template-runtime/runtime-benchmarks",
