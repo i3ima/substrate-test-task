@@ -92,7 +92,6 @@ impl Default for ExtBuilder {
 	}
 }
 
-// TODO: This pallet is not yet ready
 //
 // #[test]
 // fn transfer_works_for_basic_case() {

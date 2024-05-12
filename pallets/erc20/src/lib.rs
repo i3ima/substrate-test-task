@@ -233,7 +233,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(1)]
 		pub fn transfer_from(
 			origin: OriginFor<T>,
@@ -295,7 +294,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(2)]
 		pub fn approve(
 			origin: OriginFor<T>,
@@ -312,16 +310,13 @@ pub mod pallet {
 
 			let who = T::Lookup::lookup(who)?;
 
-			<Allowances<T, I>>::mutate(&from, &who, |allowance| {
-				*allowance = allowance.saturating_add(value);
-			});
+			Self::update_approve(&from, &who, value);
 
 			Self::deposit_event(Event::<T, I>::Approval { from, to: who, value });
 
 			Ok(())
 		}
 
-		#[pallet::weight(Weight::default())]
 		#[pallet::call_index(9)]
 		pub fn issue(
 			origin: OriginFor<T>,
@@ -366,6 +361,12 @@ pub mod pallet {
 		// TODO: Maybe it's better to facilitate `frame_support::traits::tokens::fungible`?
 		pub fn update_balance(account: &T::AccountId, value: T::Balance) {
 			<Balances<T, I>>::set(account, value);
+		}
+		
+		pub fn update_approve(from: &T::AccountId, who: &T::AccountId, value: T::Balance) {
+			<Allowances<T, I>>::mutate(from, who, |allowance| {
+				*allowance = allowance.saturating_add(value);
+			});
 		}
 	}
 }
