@@ -7,18 +7,14 @@ with a [pallet](https://docs.substrate.io/learn/runtime-development/#frame) that
 - Pallet code is _very_ dirty. Manual storage set & mutate _should_ be replaces with usage of `frame_support::traits::tokens::fungible` 
   which provides trait to manage _fungible tokens_ as as stated in 
   [docs](https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_tokens/index.html#fungible-token-traits-in-frame).
-  DRY **needs** to be applied to many places with code duplication, _mainly_ transfer functions.
-- Some weird things can _possibly_ happen with `u32 -> Balance (u128)` conversions you can see throughout code. Although `u32` is a subset of `u128`
-  and arithmetic operations performed by `sp_arithmetic` with `saturating_*`/`checked_*` whenever possible I'd still check for 
-  any possible corner cases
 - Pallet is implemented as _instantiable_. Which means that by providing different types to `Config<I>` we can have multiple instances of it 
   in one runtime
 
 ## TODO: 
 - [X] Remove u32 -> T::Balance conversions
 - [X] Replace `OptionQuery` with `ValueQuery` for simplicity
-- [ ] Weights, benchmarks
-- [ ] Unit tests (integration testing of substrate is whole another story)
+- [X] Weights, benchmarks
+- [X] Extrinsic unit tests (integration testing of substrate is whole another story)
 - [ ] Refactor of code structure - implement `tokens::funginle`, move common functionality in separate functions, change how storage gets modified
 - [x] Replace some direct storage access with `storage-getters`
 
@@ -26,8 +22,16 @@ with a [pallet](https://docs.substrate.io/learn/runtime-development/#frame) that
 
 Use the following command to build the node without launching it:
 
-```sh
+```shell
 cargo build --release
+```
+
+### Tests
+
+Unit tests are provided inside of benchmarks. You can run them via:
+
+```shell
+cargo test --package pallet-erc20 --features runtime-benchmarks
 ```
 
 ### Run
