@@ -194,12 +194,6 @@ pub mod pallet {
 			// check that it's signed by whoever called it
 			let from = ensure_signed(origin)?;
 
-			// Don't do nothing if value is zero.
-			// TODO: Maybe return error or produce event instead?
-			if value.is_zero() {
-				return Ok(());
-			}
-
 			// Convert AccountId
 			let dest = T::Lookup::lookup(dest)?;
 
@@ -215,10 +209,6 @@ pub mod pallet {
 			to: AccountIdLookupOf<T>,
 			value: T::Balance,
 		) -> DispatchResult {
-			if value.is_zero() {
-				return Ok(())
-			}
-
 			// Since we're doing transfer of tokens on behalf of other user we need to make sure
 			// origin of transaction is signed
 			let origin = ensure_signed(origin)?;
