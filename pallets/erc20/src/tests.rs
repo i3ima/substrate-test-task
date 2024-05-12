@@ -92,7 +92,7 @@ impl Default for ExtBuilder {
 	}
 }
 
-//
+// TODO: Add tests that will be checking for possibly failing scenarios
 // #[test]
 // fn transfer_works_for_basic_case() {
 // 	new_test_ext().execute_with(|| {

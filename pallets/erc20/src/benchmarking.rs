@@ -18,7 +18,7 @@ mod benchmarks {
 	#[benchmark]
 	fn transfer() {
 		// Benchmarks of Substrate pallets typically have 3 distinct stages: setup, call and
-		// verification Setup is all that happens before #[extrinsic_call] and verification it's
+		// verification. Setup is all that happens before #[extrinsic_call] and verification is
 		// what goes after
 
 		// Setup

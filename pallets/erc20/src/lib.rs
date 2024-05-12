@@ -24,7 +24,7 @@ pub(crate) type AccountIdLookupOf<T> =
 pub mod pallet {
 	use super::*;
 	use codec::Codec;
-	use core::fmt::Debug;
+	use core::{fmt::Debug, ops::Sub};
 	use frame_support::{ensure, pallet_prelude::*, BoundedVec};
 	use frame_system::pallet_prelude::{OriginFor, *};
 	use scale_info::prelude::{string::String, vec::Vec};
@@ -88,7 +88,8 @@ pub mod pallet {
 		StorageValue<_, BoundedVec<u8, T::MaxSymbolLength>, ValueQuery>;
 
 	// TODO: Maybe total supply should use associated type that differs from balance one?
-	// It may create some problems of conversion but with proper `AtLeast` bounds it'll give pallet more robustness and flexibility
+	// It may create some problems of conversion but with proper `AtLeast` bounds it'll give pallet
+	// more robustness and flexibility
 	#[pallet::storage]
 	#[pallet::getter(fn total_supply)]
 	pub type TotalSupply<T: Config<I>, I: 'static = ()> = StorageValue<_, T::Balance, ValueQuery>;
@@ -202,30 +203,7 @@ pub mod pallet {
 			// Convert AccountId
 			let dest = T::Lookup::lookup(dest)?;
 
-			// Get the sender balance. Will return 0 by default (i.e when no value)
-			let sender_funds = Self::balance_of(&from);
-
-			// Check if sender has enough funds
-			ensure!(sender_funds >= value, Error::<T, I>::NotEnoughFunds);
-
-			// Get current funds amount of receiver
-			let receiver_funds: T::Balance = Self::balance_of(&dest);
-
-			// Try to update funds
-			let remaining: T::Balance = sender_funds.saturating_sub(value);
-
-			// Do a checked add to make sure we'll not overflow
-			let new: T::Balance =
-				receiver_funds.checked_add(&value).ok_or(Error::<T, I>::ReceiverOverflow)?;
-
-			// Update sender
-			Self::update_balance(&from, remaining);
-
-			// Update receiver
-			Self::update_balance(&dest, new);
-
-			// Produce event if successful
-			Self::deposit_event(Event::Transfer { from, to: dest, value });
+			Self::_transfer(&from, &dest, value)?;
 
 			Ok(())
 		}
@@ -248,19 +226,6 @@ pub mod pallet {
 			let from = T::Lookup::lookup(from)?;
 			let to = T::Lookup::lookup(to)?;
 
-			// Update sender
-			<Balances<T, I>>::mutate(&from, |balance| {
-				// If there's no balance for such account there's no point in continuing
-				ensure!(!balance.is_zero(), Error::<T, I>::NotEnoughFunds);
-
-				ensure!(*balance >= value, Error::<T, I>::NotEnoughFunds);
-
-				let remaining = balance.saturating_sub(value);
-				*balance = remaining;
-
-				Ok::<_, Error<T, I>>(())
-			})?;
-
 			// Update allowance
 			<Allowances<T, I>>::mutate(&from, origin, |allowance| {
 				let current = *allowance;
@@ -279,14 +244,7 @@ pub mod pallet {
 				Ok::<_, Error<T, I>>(())
 			})?;
 
-			// Finally, update sender
-			<Balances<T, I>>::mutate(&to, |balance| {
-				*balance = balance.checked_add(&value).ok_or(Error::<T, I>::ReceiverOverflow)?;
-
-				Ok::<_, Error<T, I>>(())
-			})?;
-
-			Self::deposit_event(Event::<T, I>::Transfer { from, to, value });
+			Self::_transfer(&from, &to, value)?;
 
 			Ok(())
 		}
@@ -323,7 +281,6 @@ pub mod pallet {
 			// Make sure only root can call this extrinsic or call dispatched by pallet_sudo
 			T::ForceOrigin::ensure_origin(origin)?;
 
-			// TODO: Should I move this before ensure_origin?
 			// Don't do anything if value is zero
 			if value.is_zero() {
 				return Ok(())
@@ -331,22 +288,18 @@ pub mod pallet {
 
 			let dest = T::Lookup::lookup(to)?;
 
-			// Get current supply and make sure no overflow will occur
-			let current_supply = Self::total_supply();
-			let remaining =
-				current_supply.checked_sub(&value).ok_or(Error::<T, I>::NotEnoughSupply)?;
-
-
-			// Try to update balance
-			<Balances<T, I>>::mutate(&dest, |balance| {
-				let new_balance = balance.checked_add(&value).ok_or(Error::<T, I>::ReceiverOverflow)?;
-				*balance = new_balance;
+			<TotalSupply<T, I>>::mutate(|supply| {
+				*supply = supply.checked_sub(&value).ok_or(Error::NotEnoughSupply)?;
 
 				Ok::<(), Error<T, I>>(())
 			})?;
 
-			// If balance got updated successfully we can update supply
-			<TotalSupply<T, I>>::set(remaining);
+			// Try to update balance
+			<Balances<T, I>>::mutate(&dest, |balance| {
+				*balance = balance.checked_add(&value).ok_or(Error::<T, I>::ReceiverOverflow)?;
+
+				Ok::<(), Error<T, I>>(())
+			})?;
 
 			Self::deposit_event(Event::Issuance { to: dest, value });
 
@@ -355,7 +308,6 @@ pub mod pallet {
 	}
 
 	impl<T: Config<I>, I: 'static> Pallet<T, I> {
-		// TODO: Maybe it's better to facilitate `frame_support::traits::tokens::fungible`?
 		pub fn update_balance(account: &T::AccountId, value: T::Balance) {
 			<Balances<T, I>>::set(account, value);
 		}
@@ -364,6 +316,36 @@ pub mod pallet {
 			<Allowances<T, I>>::mutate(from, who, |allowance| {
 				*allowance = allowance.saturating_add(value);
 			});
+		}
+
+		pub fn _transfer(
+			from: &T::AccountId,
+			to: &T::AccountId,
+			amount: T::Balance,
+		) -> DispatchResult {
+			if amount.is_zero() {
+				return Ok(())
+			}
+
+			<Balances<T, I>>::mutate(from, |balance| {
+				ensure!(*balance >= amount, Error::NotEnoughFunds);
+				*balance = balance.sub(amount);
+				Ok::<(), Error<T, I>>(())
+			})?;
+
+			<Balances<T, I>>::mutate(to, |balance| {
+				*balance = balance.checked_add(&amount).ok_or(Error::ReceiverOverflow)?;
+				Ok::<(), Error<T, I>>(())
+			})?;
+
+			// Produce event if successful
+			Self::deposit_event(Event::Transfer {
+				from: from.clone(),
+				to: to.clone(),
+				value: amount,
+			});
+
+			Ok(())
 		}
 	}
 }

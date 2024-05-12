@@ -48,8 +48,8 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
         // Proof Size summary in bytes:
         //  Measured:  `143`
         //  Estimated: `6083`
-        // Minimum execution time: 9_000_000 picoseconds.
-        Weight::from_parts(10_000_000, 6083)
+        // Minimum execution time: 8_000_000 picoseconds.
+        Weight::from_parts(8_000_000, 6083)
             .saturating_add(T::DbWeight::get().reads(2_u64))
             .saturating_add(T::DbWeight::get().writes(2_u64))
     }
@@ -66,16 +66,16 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
             .saturating_add(T::DbWeight::get().reads(2_u64))
             .saturating_add(T::DbWeight::get().writes(2_u64))
     }
-    /// Storage: `Erc::Balances` (r:2 w:2)
-    /// Proof: `Erc::Balances` (`max_values`: None, `max_size`: None, mode: `Measured`)
     /// Storage: `Erc::Allowances` (r:1 w:1)
     /// Proof: `Erc::Allowances` (`max_values`: None, `max_size`: None, mode: `Measured`)
+    /// Storage: `Erc::Balances` (r:2 w:2)
+    /// Proof: `Erc::Balances` (`max_values`: None, `max_size`: None, mode: `Measured`)
     fn transfer_from() -> Weight {
         // Proof Size summary in bytes:
         //  Measured:  `265`
         //  Estimated: `6205`
         // Minimum execution time: 11_000_000 picoseconds.
-        Weight::from_parts(11_000_000, 6205)
+        Weight::from_parts(12_000_000, 6205)
             .saturating_add(T::DbWeight::get().reads(3_u64))
             .saturating_add(T::DbWeight::get().writes(3_u64))
     }
@@ -100,8 +100,8 @@ impl WeightInfo for () {
         // Proof Size summary in bytes:
         //  Measured:  `143`
         //  Estimated: `6083`
-        // Minimum execution time: 9_000_000 picoseconds.
-        Weight::from_parts(10_000_000, 6083)
+        // Minimum execution time: 8_000_000 picoseconds.
+        Weight::from_parts(8_000_000, 6083)
             .saturating_add(RocksDbWeight::get().reads(2_u64))
             .saturating_add(RocksDbWeight::get().writes(2_u64))
     }
@@ -118,16 +118,16 @@ impl WeightInfo for () {
             .saturating_add(RocksDbWeight::get().reads(2_u64))
             .saturating_add(RocksDbWeight::get().writes(2_u64))
     }
-    /// Storage: `Erc::Balances` (r:2 w:2)
-    /// Proof: `Erc::Balances` (`max_values`: None, `max_size`: None, mode: `Measured`)
     /// Storage: `Erc::Allowances` (r:1 w:1)
     /// Proof: `Erc::Allowances` (`max_values`: None, `max_size`: None, mode: `Measured`)
+    /// Storage: `Erc::Balances` (r:2 w:2)
+    /// Proof: `Erc::Balances` (`max_values`: None, `max_size`: None, mode: `Measured`)
     fn transfer_from() -> Weight {
         // Proof Size summary in bytes:
         //  Measured:  `265`
         //  Estimated: `6205`
         // Minimum execution time: 11_000_000 picoseconds.
-        Weight::from_parts(11_000_000, 6205)
+        Weight::from_parts(12_000_000, 6205)
             .saturating_add(RocksDbWeight::get().reads(3_u64))
             .saturating_add(RocksDbWeight::get().writes(3_u64))
     }
