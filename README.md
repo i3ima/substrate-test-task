@@ -3,8 +3,7 @@
 This is the [substrate template node](https://github.com/substrate-developer-hub/substrate-node-template)
 with a [pallet](https://docs.substrate.io/learn/runtime-development/#frame) that implements [ERC20](https://eips.ethereum.org/EIPS/eip-20)-_like_ functionality 
 
-## Notes:
-  [docs](https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_tokens/index.html#fungible-token-traits-in-frame).
+### Notes:
 - Pallet is implemented as _instantiable_. Which means that by providing different types to `Config<I>` we can have multiple instances of it 
   in one runtime
 
