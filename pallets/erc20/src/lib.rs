@@ -75,9 +75,6 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ TypeInfo
 			+ FixedPointOperand;
-
-		// TODO: Weights for this pallet
-		// type WeightInfo;
 	}
 
 	/// Token name, encoded as bytes, UTF-8. Whatever utility is querying storage should do custom
@@ -362,7 +359,7 @@ pub mod pallet {
 		pub fn update_balance(account: &T::AccountId, value: T::Balance) {
 			<Balances<T, I>>::set(account, value);
 		}
-		
+
 		pub fn update_approve(from: &T::AccountId, who: &T::AccountId, value: T::Balance) {
 			<Allowances<T, I>>::mutate(from, who, |allowance| {
 				*allowance = allowance.saturating_add(value);

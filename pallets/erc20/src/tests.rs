@@ -11,7 +11,7 @@ pub const TOTAL_SUPPLY: u32 = u32::MAX;
 
 // Types that are needed for Config's of this pallet and other that are coupled
 type Block = frame_system::mocking::MockBlock<Test>;
-pub(crate) type Balance = u128;
+pub type Balance = u32;
 
 
 parameter_types! {
@@ -72,7 +72,7 @@ impl ExtBuilder {
 				(1, 0)
 			],
             allowances: vec![],
-            total_supply: u128::MAX,
+            total_supply: Balance::MAX,
             name: "Ethereum".to_string(),
             symbol: "ETH".to_string(),
             _ignore: Default::default()

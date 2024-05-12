@@ -10,35 +10,39 @@ const SEED: u32 = 0;
 #[instance_benchmarks]
 mod benchmarks {
 	use super::*;
-	use sp_runtime::{traits::StaticLookup, Saturating};
+	use sp_runtime::{
+		traits::{Bounded, StaticLookup},
+		Saturating,
+	};
 
 	#[benchmark]
 	fn transfer() {
+		// Benchmarks of Substrate pallets typically have 3 distinct stages: setup, call and
+		// verification Setup is all that happens before #[extrinsic_call] and verification it's
+		// what goes after
+
 		// Setup
 		let caller: T::AccountId = whitelisted_caller();
 
 		// How much to transfer from it
-		let transfer_amount = <T as Config<I>>::Balance::from(500u32);
+		let transfer_amount = T::Balance::from(500u32);
 
 		let recipient: T::AccountId = account("recipient", 1, SEED);
 		let recipient_lookup = T::Lookup::unlookup(recipient.clone());
-
-		// Give source some balance
-		// let _ = <Erc<T, I>>::transfer(&source_lookup, &recipient, transfer_amount);
 
 		//Call
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), recipient_lookup, transfer_amount);
 
 		// Verification
-		assert_eq!(Erc::<T, I>::balance_of(caller), <T as Config<I>>::Balance::from(1500u32));
+		assert_eq!(Erc::<T, I>::balance_of(caller), T::Balance::from(1500u32));
 		assert_eq!(Erc::<T, I>::balance_of(recipient), transfer_amount);
 	}
 
 	#[benchmark]
 	fn issue() {
 		// How much to issue
-		let issue_amount = <T as Config<I>>::Balance::from(500u32);
+		let issue_amount = T::Balance::from(500u32);
 
 		// And who will receive it
 		let recipient: T::AccountId = account("recipient", 1, SEED);
@@ -50,7 +54,7 @@ mod benchmarks {
 		// Verify it
 		assert_eq!(
 			Erc::<T, I>::total_supply(),
-			<T as Config<I>>::Balance::from(u32::MAX) - issue_amount
+			<T as Config<I>>::Balance::max_value() - issue_amount
 		);
 		assert_eq!(Erc::<T, I>::balance_of(recipient), issue_amount);
 	}
@@ -67,7 +71,7 @@ mod benchmarks {
 
 		// This account will be allowed to transfer funds
 		let allowed: T::AccountId = account("allowed", 1, SEED);
-		
+
 		// To this account
 		let recipient: T::AccountId = account("recipient", 2, SEED);
 		let recipient_lookup = T::Lookup::unlookup(recipient.clone());
