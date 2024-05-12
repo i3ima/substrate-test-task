@@ -4,19 +4,9 @@ This is the [substrate template node](https://github.com/substrate-developer-hub
 with a [pallet](https://docs.substrate.io/learn/runtime-development/#frame) that implements [ERC20](https://eips.ethereum.org/EIPS/eip-20)-_like_ functionality 
 
 ## Notes:
-- Pallet code is _very_ dirty. Manual storage set & mutate _should_ be replaces with usage of `frame_support::traits::tokens::fungible` 
-  which provides trait to manage _fungible tokens_ as as stated in 
   [docs](https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_tokens/index.html#fungible-token-traits-in-frame).
 - Pallet is implemented as _instantiable_. Which means that by providing different types to `Config<I>` we can have multiple instances of it 
   in one runtime
-
-## TODO: 
-- [X] Remove u32 -> T::Balance conversions
-- [X] Replace `OptionQuery` with `ValueQuery` for simplicity
-- [X] Weights, benchmarks
-- [X] Extrinsic unit tests (integration testing of substrate is whole another story)
-- [ ] Refactor of code structure - implement `tokens::funginle`, move common functionality in separate functions, change how storage gets modified
-- [x] Replace some direct storage access with `storage-getters`
 
 ### Build
 
