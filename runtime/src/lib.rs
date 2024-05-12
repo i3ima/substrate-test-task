@@ -248,7 +248,7 @@ impl pallet_erc20::Config for Runtime {
 	type Supply = ConstU32<TOTAL_SUPPLY>;
 	type WeightInfo = pallet_erc20::weights::SubstrateWeight<Runtime>;
 	
-	type Balance = Balance;
+	type Balance = u32;
 }
 
 parameter_types! {
